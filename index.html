@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instagram Relationship Checker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen py-10 px-4">
+  <div class="max-w-5xl mx-auto">
+    <!-- Header -->
+    <header class="text-center mb-8">
+      <h1 class="text-3xl font-bold text-indigo-400 mb-2">Instagram Relationship Checker</h1>
+      <p class="text-slate-400 text-sm">
+        Cek relasi pengikut Instagram secara offline, aman, dan tanpa login.
+      </p>
+    </header>
+
+    <!-- Upload Section -->
+    <div class="bg-slate-800 rounded-xl p-6 shadow-xl border border-slate-700 mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Input Followers -->
+      <div>
+        <label class="block text-sm font-semibold mb-2 text-slate-300">1. File `followers_1.json`</label>
+        <input type="file" id="followersInput" accept=".json" 
+          class="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer border border-slate-700 rounded-lg bg-slate-900/50 p-1" />
+        <span id="followersStatus" class="text-xs text-indigo-300 mt-1 block"></span>
+      </div>
+
+      <!-- Input Following -->
+      <div>
+        <label class="block text-sm font-semibold mb-2 text-slate-300">2. File `following.json`</label>
+        <input type="file" id="followingInput" accept=".json" 
+          class="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer border border-slate-700 rounded-lg bg-slate-900/50 p-1" />
+        <span id="followingStatus" class="text-xs text-indigo-300 mt-1 block"></span>
+      </div>
+
+      <div class="md:col-span-2">
+        <button id="processBtn" disabled 
+          class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-all shadow-lg">
+          Proses & Bandingkan Data
+        </button>
+      </div>
+    </div>
+
+    <!-- Result Section -->
+    <div id="resultContainer" class="hidden bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl">
+      <!-- Tabs Header -->
+      <div class="flex border-b border-slate-700 mb-6 gap-2">
+        <button id="tabNotFollowingBack" class="py-2.5 px-4 font-semibold text-sm rounded-t-lg border-b-2 border-indigo-500 text-indigo-400 bg-slate-900/40 transition-all">
+          Tidak Follow Back (<span id="countNotFollowingBack">0</span>)
+        </button>
+        <button id="tabNotFollowedByMe" class="py-2.5 px-4 font-semibold text-sm rounded-t-lg border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all">
+          Belum Anda Follow Back (<span id="countNotFollowedByMe">0</span>)
+        </button>
+      </div>
+
+      <!-- Controls: Search, Sort, Rows per page -->
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+        <div class="w-full sm:w-1/2">
+          <input type="text" id="searchInput" placeholder="Cari username..." 
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500" />
+        </div>
+
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+          <!-- Select Sort -->
+          <select id="sortSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-indigo-500">
+            <option value="date-desc">Waktu: Terbaru &rarr; Terlama</option>
+            <option value="date-asc">Waktu: Terlama &rarr; Terbaru</option>
+            <option value="name-asc">Nama: A - Z</option>
+            <option value="name-desc">Nama: Z - A</option>
+          </select>
+
+          <!-- Select Limit -->
+          <select id="pageSizeSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-indigo-500">
+            <option value="10">10 / hal</option>
+            <option value="25">25 / hal</option>
+            <option value="50">50 / hal</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Data Table -->
+      <div class="overflow-x-auto rounded-lg border border-slate-700 mb-4">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-900/80 text-slate-400 uppercase text-xs border-b border-slate-700">
+            <tr>
+              <th scope="col" class="px-4 py-3 w-12">No</th>
+              <th scope="col" class="px-4 py-3">Pengguna</th>
+              <th scope="col" class="px-4 py-3">Waktu Follow</th>
+              <th scope="col" class="px-4 py-3 text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-700/60">
+            <!-- Table Rows Rendered via JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Footer -->
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2">
+        <span id="pageInfo" class="text-xs text-slate-400">
+          Menampilkan 0 - 0 dari 0 akun
+        </span>
+
+        <div class="flex items-center gap-2">
+          <button id="prevBtn" disabled
+            class="px-3 py-1.5 text-xs font-semibold bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 rounded-md transition-colors">
+            &larr; Prev
+          </button>
+          <span id="currentPageDisplay" class="text-xs font-semibold px-2 text-indigo-400">1</span>
+          <button id="nextBtn" disabled
+            class="px-3 py-1.5 text-xs font-semibold bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 rounded-md transition-colors">
+            Next &rarr;
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let followersMap = new Map(); // username -> timestamp
+    let followingMap = new Map(); // username -> timestamp
+
+    let notFollowingBackList = []; // { username, timestamp }
+    let notFollowedByMeList = [];  // { username, timestamp }
+
+    let activeTab = 'notFollowingBack';
+    let currentPage = 1;
+    let pageSize = 10;
+    let sortOption = 'date-desc';
+
+    const followersInput = document.getElementById('followersInput');
+    const followingInput = document.getElementById('followingInput');
+    const followersStatus = document.getElementById('followersStatus');
+    const followingStatus = document.getElementById('followingStatus');
+    const processBtn = document.getElementById('processBtn');
+    const resultContainer = document.getElementById('resultContainer');
+    const tableBody = document.getElementById('tableBody');
+
+    const tabNotFollowingBack = document.getElementById('tabNotFollowingBack');
+    const tabNotFollowedByMe = document.getElementById('tabNotFollowedByMe');
+    const countNotFollowingBack = document.getElementById('countNotFollowingBack');
+    const countNotFollowedByMe = document.getElementById('countNotFollowedByMe');
+
+    const searchInput = document.getElementById('searchInput');
+    const sortSelect = document.getElementById('sortSelect');
+    const pageSizeSelect = document.getElementById('pageSizeSelect');
+
+    const pageInfo = document.getElementById('pageInfo');
+    const currentPageDisplay = document.getElementById('currentPageDisplay');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    // Recursive parser yang mengekstrak Username & Timestamp dari JSON Meta
+    function extractUserData(jsonObj) {
+      const userMap = new Map();
+
+      function walk(node) {
+        if (!node || typeof node !== 'object') return;
+
+        // Skema standar Meta: string_list_data
+        if (node.string_list_data && Array.isArray(node.string_list_data)) {
+          node.string_list_data.forEach(item => {
+            let uname = null;
+            if (item.value) {
+              uname = item.value.toLowerCase().trim();
+            } else if (item.href) {
+              const parts = item.href.replace(/\/$/, '').split('/');
+              const lastPart = parts[parts.length - 1];
+              if (lastPart && lastPart !== 'instagram.com') {
+                uname = lastPart.toLowerCase().trim();
+              }
+            }
+
+            if (uname) {
+              const ts = item.timestamp || 0;
+              userMap.set(uname, ts);
+            }
+          });
+        }
+
+        // Skema alternatif
+        if (typeof node.value === 'string' && node.value && (node.timestamp || node.href)) {
+          const uname = node.value.toLowerCase().trim();
+          const ts = node.timestamp || 0;
+          userMap.set(uname, ts);
+        }
+
+        if (Array.isArray(node)) {
+          node.forEach(item => walk(item));
+        } else {
+          Object.keys(node).forEach(key => walk(node[key]));
+        }
+      }
+
+      walk(jsonObj);
+      return userMap;
+    }
+
+    function checkReady() {
+      processBtn.disabled = !(followersMap.size > 0 && followingMap.size > 0);
+    }
+
+    followersInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const json = JSON.parse(event.target.result);
+            followersMap = extractUserData(json);
+            followersStatus.innerText = `Terbaca: ${followersMap.size} followers`;
+            checkReady();
+          } catch (err) {
+            alert('Gagal membaca file followers_1.json!');
+          }
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    followingInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const json = JSON.parse(event.target.result);
+            followingMap = extractUserData(json);
+            followingStatus.innerText = `Terbaca: ${followingMap.size} following`;
+            checkReady();
+          } catch (err) {
+            alert('Gagal membaca file following.json!');
+          }
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    processBtn.addEventListener('click', () => {
+      notFollowingBackList = [];
+      notFollowedByMeList = [];
+
+      // 1. Kamu follow, mereka tidak follow back
+      followingMap.forEach((timestamp, username) => {
+        if (!followersMap.has(username)) {
+          notFollowingBackList.push({ username, timestamp });
+        }
+      });
+
+      // 2. Mereka follow, kamu tidak follow back
+      followersMap.forEach((timestamp, username) => {
+        if (!followingMap.has(username)) {
+          notFollowedByMeList.push({ username, timestamp });
+        }
+      });
+
+      countNotFollowingBack.innerText = notFollowingBackList.length;
+      countNotFollowedByMe.innerText = notFollowedByMeList.length;
+
+      resultContainer.classList.remove('hidden');
+      currentPage = 1;
+      renderTable();
+    });
+
+    function formatDate(unixTimestamp) {
+      if (!unixTimestamp) return '-';
+      const date = new Date(unixTimestamp * 1000);
+      return date.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+    }
+
+    function getFilteredAndSortedData() {
+      let rawList = activeTab === 'notFollowingBack' ? [...notFollowingBackList] : [...notFollowedByMeList];
+      const query = searchInput.value.toLowerCase().trim();
+
+      // Search Filter
+      if (query) {
+        rawList = rawList.filter(item => item.username.toLowerCase().includes(query));
+      }
+
+      // Sort Options
+      rawList.sort((a, b) => {
+        if (sortOption === 'date-desc') return b.timestamp - a.timestamp;
+        if (sortOption === 'date-asc') return a.timestamp - b.timestamp;
+        if (sortOption === 'name-asc') return a.username.localeCompare(b.username);
+        if (sortOption === 'name-desc') return b.username.localeCompare(a.username);
+        return 0;
+      });
+
+      return rawList;
+    }
+
+    function renderTable() {
+      const filteredData = getFilteredAndSortedData();
+      const totalItems = filteredData.length;
+      const totalPages = Math.ceil(totalItems / pageSize) || 1;
+
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, totalItems);
+      const pageData = filteredData.slice(startIndex, endIndex);
+
+      tableBody.innerHTML = '';
+
+      if (pageData.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="4" class="text-center py-8 text-slate-400">
+              Tidak ada data yang ditemukan.
+            </td>
+          </tr>
+        `;
+      } else {
+        pageData.forEach((item, idx) => {
+          const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.username)}&background=6366f1&color=fff&bold=true&rounded=true`;
+          const formattedDate = formatDate(item.timestamp);
+
+          const row = document.createElement('tr');
+          row.className = 'hover:bg-slate-700/30 transition-colors';
+          row.innerHTML = `
+            <td class="px-4 py-3 text-slate-400 font-mono text-xs">${startIndex + idx + 1}</td>
+            <td class="px-4 py-3 font-medium text-slate-200">
+              <div class="flex items-center gap-3">
+                <img src="${avatarUrl}" alt="${item.username}" class="w-8 h-8 rounded-full border border-slate-600 shadow-sm" />
+                <span>@${item.username}</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-slate-400 text-xs">${formattedDate}</td>
+            <td class="px-4 py-3 text-right">
+              <a href="https://instagram.com/${item.username}" target="_blank" rel="noopener noreferrer" 
+                class="inline-block text-xs bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white px-3 py-1.5 rounded-md transition-colors border border-indigo-500/30">
+                Buka Profil ↗
+              </a>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+      }
+
+      // Update Pagination Bar
+      pageInfo.innerText = totalItems === 0 
+        ? 'Menampilkan 0 akun' 
+        : `Menampilkan ${startIndex + 1} - ${endIndex} dari ${totalItems} akun`;
+      
+      currentPageDisplay.innerText = currentPage;
+      prevBtn.disabled = currentPage === 1;
+      nextBtn.disabled = currentPage >= totalPages || totalItems === 0;
+    }
+
+    // Event Listeners Tab Switch
+    tabNotFollowingBack.addEventListener('click', () => {
+      activeTab = 'notFollowingBack';
+      currentPage = 1;
+      tabNotFollowingBack.className = "py-2.5 px-4 font-semibold text-sm rounded-t-lg border-b-2 border-indigo-500 text-indigo-400 bg-slate-900/40 transition-all";
+      tabNotFollowedByMe.className = "py-2.5 px-4 font-semibold text-sm rounded-t-lg border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all";
+      renderTable();
+    });
+
+    tabNotFollowedByMe.addEventListener('click', () => {
+      activeTab = 'notFollowedByMe';
+      currentPage = 1;
+      tabNotFollowedByMe.className = "py-2.5 px-4 font-semibold text-sm rounded-t-lg border-b-2 border-indigo-500 text-indigo-400 bg-slate-900/40 transition-all";
+      tabNotFollowingBack.className = "py-2.5 px-4 font-semibold text-sm rounded-t-lg border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all";
+      renderTable();
+    });
+
+    // Event Controls
+    searchInput.addEventListener('input', () => {
+      currentPage = 1;
+      renderTable();
+    });
+
+    sortSelect.addEventListener('change', (e) => {
+      sortOption = e.target.value;
+      renderTable();
+    });
+
+    pageSizeSelect.addEventListener('change', (e) => {
+      pageSize = parseInt(e.target.value, 10);
+      currentPage = 1;
+      renderTable();
+    });
+
+    prevBtn.addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderTable();
+      }
+    });
+
+    nextBtn.addEventListener('click', () => {
+      currentPage++;
+      renderTable();
+    });
+  </script>
+</body>
+</html>
